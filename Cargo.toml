@@ -1,0 +1,12 @@
+[package]
+name = "ingurisshu"
+version = "0.1.0"
+authors = ["Yosshi999 <Yosshi999@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aho-corasick = "0.7"
+strum = "0.13.0"
+strum_macros = "0.13.0"
