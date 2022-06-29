@@ -138,21 +138,88 @@ fn unwrap_phonemes<'a>(seq: &'a Vec<Phoneme>) -> Vec<&'a str> {
     }).collect()
 }
 
+fn to_kana(seq: &Vec<Phoneme>) -> String {
+    let mut out = String::new();
+    for w in seq.windows(2) {
+        match (w[0], w[1]) {
+            (Phoneme::Silence, Phoneme::Vowel(x)) => out.push_str(vowel_to_kana(x)),
+            (Phoneme::Vowel(_), Phoneme::Vowel(x)) => out.push_str(vowel_to_kana(x)),
+            (Phoneme::Conso(x), Phoneme::Vowel(y)) => out.push_str(convo_to_kana(x, y)),
+            _ => (),
+        }
+    }
+    out
+}
+
+fn vowel_to_kana(x: &str) -> &str {
+    match &*x.to_lowercase() {
+        "a" => "ア",
+        "i" => "イ",
+        "u" => "ウ",
+        "e" => "エ",
+        "o" => "オ",
+        "n" => "ン",
+        "cl" => "ッ",
+        _ => "",
+    }
+}
+
+fn convo_to_kana<'a>(c: &'a str, v: &'a str) -> &'a str {
+    let vv = &*v.to_lowercase();
+    match c {
+        "b"  => match vv {"a"=>"バ",	"i"=>"ビ",	"u"=>"ブ",	"e"=>"ベ",	"o"=>"ボ",	_=>""},
+        "by" => match vv {"a"=>"ビャ",	"i"=>"ビ",	"u"=>"ビュ",	"e"=>"ビェ",	"o"=>"ビョ",	_=>""},
+        "ch" => match vv {"a"=>"チャ",	"i"=>"チ",	"u"=>"チュ",	"e"=>"チェ",	"o"=>"チョ",	_=>""},
+        "d"  => match vv {"a"=>"ダ",	"i"=>"ジ",	"u"=>"ズ",	"e"=>"デ",	"o"=>"ド",	_=>""},
+        // "dy" => match vv {},
+        "f"  => match vv {"a"=>"ファ",	"i"=>"フィ",	"u"=>"フ",	"e"=>"フェ",	"o"=>"フォ",	_=>""},
+        "g"  => match vv {"a"=>"ガ",	"i"=>"ギ",	"u"=>"グ",	"e"=>"ゲ",	"o"=>"ゴ",	_=>""},
+        // "gw" => match vv {"a"=>"",	"i"=>"",	"u"=>"",	"e"=>"",	"o"=>"",	_=>""},
+        "gy" => match vv {"a"=>"ギャ",	"i"=>"ギ",	"u"=>"ギュ",	"e"=>"ギェ",	"o"=>"ギョ",	_=>""},
+        "h"  => match vv {"a"=>"ハ",	"i"=>"ヒ",	"u"=>"フ",	"e"=>"ヘ",	"o"=>"ホ",	_=>""},
+        "hy" => match vv {"a"=>"ヒャ",	"i"=>"ヒ",	"u"=>"ヒュ",	"e"=>"ヒェ",	"o"=>"ヒョ",	_=>""},
+        "j"  => match vv {"a"=>"ジャ",	"i"=>"ジ",	"u"=>"ジュ",	"e"=>"ジェ",	"o"=>"ジョ",	_=>""},
+        "k"  => match vv {"a"=>"カ",	"i"=>"キ",	"u"=>"ク",	"e"=>"ケ",	"o"=>"コ",	_=>""},
+        // "kw" => match vv {"a"=>"",	"i"=>"",	"u"=>"",	"e"=>"",	"o"=>"",	_=>""},
+        "ky" => match vv {"a"=>"キャ",	"i"=>"キ",	"u"=>"キュ",	"e"=>"キェ",	"o"=>"キョ",	_=>""},
+        "m"  => match vv {"a"=>"マ",	"i"=>"ミ",	"u"=>"ム",	"e"=>"メ",	"o"=>"モ",	_=>""},
+        "my" => match vv {"a"=>"ミャ",	"i"=>"ミ",	"u"=>"ミュ",	"e"=>"ミェ",	"o"=>"ミョ",	_=>""},
+        "n"  => match vv {"a"=>"ナ",	"i"=>"ニ",	"u"=>"ヌ",	"e"=>"ネ",	"o"=>"ノ",	_=>""},
+        "ny" => match vv {"a"=>"ニャ",	"i"=>"ニ",	"u"=>"ニュ",	"e"=>"ニェ",	"o"=>"ニョ",	_=>""},
+        "p"  => match vv {"a"=>"パ",	"i"=>"ピ",	"u"=>"プ",	"e"=>"ペ",	"o"=>"ポ",	_=>""},
+        "py" => match vv {"a"=>"ピャ",	"i"=>"ピ",	"u"=>"ピュ",	"e"=>"ピェ",	"o"=>"ピョ",	_=>""},
+        "r"  => match vv {"a"=>"ラ",	"i"=>"リ",	"u"=>"ル",	"e"=>"レ",	"o"=>"ロ",	_=>""},
+        "ry" => match vv {"a"=>"リャ",	"i"=>"リ",	"u"=>"リュ",	"e"=>"レ",	"o"=>"リョ",	_=>""},
+        "s"  => match vv {"a"=>"サ",	"i"=>"シ",	"u"=>"ス",	"e"=>"セ",	"o"=>"ソ",	_=>""},
+        "sh" => match vv {"a"=>"シャ",	"i"=>"シ",	"u"=>"シュ",	"e"=>"シェ",	"o"=>"ショ",	_=>""},
+        "t"  => match vv {"a"=>"タ",	"i"=>"チ",	"u"=>"ツ",	"e"=>"テ",	"o"=>"ト",	_=>""},
+        "ts" => match vv {"a"=>"ツァ",	"i"=>"チ",	"u"=>"ツ",	"e"=>"ツェ",	"o"=>"ツォ",	_=>""},
+        "ty" => match vv {"a"=>"チャ",	"i"=>"チ",	"u"=>"チュ",	"e"=>"チェ",	"o"=>"チョ",	_=>""},
+        "v"  => match vv {"a"=>"ヴァ",	"i"=>"ヴィ",	"u"=>"ヴ",	"e"=>"ヴェ",	"o"=>"ヴォ",	_=>""},
+        "w"  => match vv {"a"=>"ワ",	"i"=>"ウィ",	"u"=>"ウ",	"e"=>"ウェ",	"o"=>"ウォ",	_=>""},
+        "y"  => match vv {"a"=>"ヤ",	"i"=>"イ",	"u"=>"ユ",	"e"=>"エ",	"o"=>"ヨ",	_=>""},
+        "z"  => match vv {"a"=>"ザ",	"i"=>"ジ",	"u"=>"ズ",	"e"=>"ゼ",	"o"=>"ゾ",	_=>""},
+        _ => "",
+    }
+}
+
 pub fn convert(english: &String) -> String {
     let matches = tokenize(&english);
     let coarse = coarse_phonemes(&matches);
     assert_eq!(ValidationResult::Ok, validate(&coarse));
     let fine = fine_phonemes(&coarse);
     assert_eq!(ValidationResult::Ok, validate(&fine));
-    let result = unwrap_phonemes(&fine);
-    
+    // let result = unwrap_phonemes(&fine);
+
     // println!("Input: {}", english);
     // println!("Tokens: {:?}", matches);
     // println!("Step1: {:?}", coarse);
     // println!("Step2: {:?}", fine);
     // println!("Result: {:?}", result);
 
-    result.join(" ")
+    // result.join(" ")
+
+    to_kana(&fine)
 }
 
 fn main() {
