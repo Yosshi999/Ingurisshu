@@ -225,9 +225,11 @@ pub fn convert(english: &String) -> String {
 }
 
 fn main() {
-    print!("> ");
-    io::stdout().flush().unwrap();
-    let mut query = String::new();
-    io::stdin().read_line(&mut query).expect("input error.");
-    println!("{}", convert(&query));
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
+        let mut query = String::new();
+        io::stdin().read_line(&mut query).expect("input error.");
+        println!("{}", convert(&query));
+    }
 }
