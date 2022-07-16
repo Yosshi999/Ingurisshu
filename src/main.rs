@@ -120,9 +120,11 @@ fn fine_phonemes<'a>(seq: &'a Vec<Phoneme>) -> Vec<Phoneme<'a>> {
             (Phoneme::Conso(_), Phoneme::Conso("n"), Phoneme::Conso(_)) => {vec.push(Phoneme::Vowel("u")); vec.push(Phoneme::Vowel("N"))},
             (Phoneme::Vowel(_), Phoneme::Conso("n"), Phoneme::Silence) => vec.push(Phoneme::Vowel("N")),
             (Phoneme::Conso(_), Phoneme::Conso("n"), Phoneme::Silence) => {vec.push(Phoneme::Vowel("u")); vec.push(Phoneme::Vowel("N"))},
+            (Phoneme::Conso("n"), Phoneme::Conso(x), Phoneme::Silence) => {vec.push(Phoneme::Conso(x)); vec.push(Phoneme::Vowel("U"))},
+            (Phoneme::Conso(_), Phoneme::Conso(x), Phoneme::Silence) => {vec.push(Phoneme::Vowel("U")); vec.push(Phoneme::Conso(x)); vec.push(Phoneme::Vowel("U"))},
+            (_, Phoneme::Conso(x), Phoneme::Silence) => {vec.push(Phoneme::Conso(x)); vec.push(Phoneme::Vowel("U"))},
             (Phoneme::Conso("n"), Phoneme::Conso(x), _) => vec.push(Phoneme::Conso(x)),
             (Phoneme::Conso(_), Phoneme::Conso(x), _) => {vec.push(Phoneme::Vowel("U")); vec.push(Phoneme::Conso(x))},
-            (_, Phoneme::Conso(x), Phoneme::Silence) => {vec.push(Phoneme::Conso(x)); vec.push(Phoneme::Vowel("U"))},
             (_, x, _) => vec.push(x)
         };
     }
