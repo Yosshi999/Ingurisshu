@@ -1,0 +1,19 @@
+preprocess:
+  pickle_filename: dataset.pickle
+data:
+  reverse_source: false
+  val_pct: 0.2
+  random_state: 42
+model:
+  source_embedding_dim: 64
+  target_embedding_dim: 64
+  hidden_dim: 64
+optim:
+  lr: 0.001
+train:
+  epoch: 10
+  batch_size: 16
+  num_workers: 0
+val:
+  batch_size: 16
+  num_workers: 0
