@@ -184,9 +184,6 @@ class NLPModule(LightningModule):
         pexs = pack_padded_sequence(exs, xls.cpu(), batch_first=False, enforce_sorted=False)
         _, hidden_state = self.encoder(pexs)
 
-        # hidden_state is tuple (h, c) if rnn is LSTM
-        hidden_state = hidden_state[0][:, pexs.unsorted_indices], hidden_state[1][:, pexs.unsorted_indices]
-
         if ys_in is None:
             sequences = []
             for batch_index in range(xs.shape[1]):
@@ -200,12 +197,12 @@ class NLPModule(LightningModule):
                     seq.append(pred)
                     if pred[0].argmax() == self.PHONEME_EOS:
                         break
+                    ey = self.emb_y(pred.argmax(1))
                 sequences.append(torch.cat(seq))
             return pack_sequence(sequences, enforce_sorted=False)
         else:
             eys = self.emb_y(ys_in)
             peys = pack_padded_sequence(eys, yls.cpu(), batch_first=False, enforce_sorted=False)
-            hidden_state = hidden_state[0][:, peys.sorted_indices], hidden_state[1][:, peys.sorted_indices]
             feats, _ = self.decoder(peys, hidden_state)
             preds = squash_packed(feats, self.out)
             return preds
