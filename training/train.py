@@ -12,6 +12,9 @@ from sklearn.model_selection import train_test_split
 import mlflow
 import numpy as np
 
+def make_optimizer(params, name, **kwargs):
+    return torch.optim.__dict__[name](params, **kwargs)
+
 def squash_packed(x, fn):
     return torch.nn.utils.rnn.PackedSequence(
         fn(x.data), x.batch_sizes, 
@@ -119,7 +122,7 @@ class NLPModule(LightningModule):
         )
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.cfg.optim.lr)
+        return make_optimizer(self.parameters(), **self.cfg.optim)
 
     def training_step(self, batch, batch_idx):
         xs, xls, ys_in, yls, ys_out, _ = batch

@@ -9,7 +9,8 @@ model:
   target_embedding_dim: 64
   hidden_dim: 64
 optim:
-  lr: 0.001
+  name: Adam
+  lr: 0.0003
 train:
   epoch: 10
   batch_size: 64
