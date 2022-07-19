@@ -1,7 +1,7 @@
 preprocess:
   pickle_filename: dataset.pickle
 data:
-  reverse_source: false
+  reverse_source: true
   val_pct: 0.2
   random_state: 42
 model:
