@@ -1,4 +1,5 @@
 import pickle
+from typing import Union
 
 import hydra
 from omegaconf import DictConfig
@@ -24,6 +25,14 @@ def squash_packed(x, fn):
     return torch.nn.utils.rnn.PackedSequence(
         fn(x.data), x.batch_sizes, 
         x.sorted_indices, x.unsorted_indices)
+
+def log_nested_params(params: DictConfig, namespace=""):
+    for k, v in params.items():
+        name = namespace + "." + k
+        if isinstance(v, DictConfig):
+            log_nested_params(v, name)
+        else:
+            mlflow.log_param(name, v)
 
 class NLPDataset(torch.utils.data.Dataset):
     def __init__(self, words, CHARS, PHONEMES, training=True):
@@ -225,6 +234,8 @@ class NLPModule(LightningModule):
 def main(cfg: DictConfig) -> None:
     np.random.seed(0)
     torch.manual_seed(0)
+
+    log_nested_params(cfg)
 
     model = NLPModule(cfg)
     trainer = Trainer(
