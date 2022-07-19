@@ -130,12 +130,19 @@ class NLPModule(LightningModule):
     
     def on_validation_start(self):
         self.vals = []
+        self.accs = 0
+        self.counts = 0
         self.preds = []
     def validation_step(self, batch, batch_idx):
         xs, xls, ys_in, yls, ys_out, _ = batch
         pred, _ = pad_packed_sequence(self.forward(xs, xls, ys_in, yls), batch_first=False)
         loss = self.loss_fn(torch.flatten(pred, end_dim=1), torch.flatten(ys_out, end_dim=1))
         self.vals.append(loss.cpu().detach().item())
+        pred_an = pred.argmax(-1)
+        correct = (pred_an == ys_out).cpu().detach().numpy() # (sequence, batch)
+        weights = (ys_out != self.PHONEME_PAD).cpu().detach().numpy()
+        self.accs += np.average(correct, axis=0, weights=weights).sum()
+        self.counts += correct.shape[1]
 
         pred_eval = self.forward(xs, xls)
         pred_tokens = squash_packed(pred_eval, lambda x: x.argmax(1))
@@ -156,7 +163,8 @@ class NLPModule(LightningModule):
         return loss
     def on_validation_end(self):
         mlflow.log_metric("val_loss", np.mean(self.vals), self.global_step)
-        mlflow.log_text("\n".join(self.preds), f"prediction-{self.global_step:05d}.csv")
+        mlflow.log_metric("val_acc", self.accs / self.counts, self.global_step)
+        mlflow.log_text("\n".join(self.preds), f"prediction-{self.global_step:05d}.txt")
 
     def forward(self, xs, xls, ys_in=None, yls=None):
         """
