@@ -12,6 +12,11 @@ from sklearn.model_selection import train_test_split
 import mlflow
 import numpy as np
 
+model_rnns = {
+    "LSTM": nn.LSTM,
+    "GRU": nn.GRU,
+}
+
 def make_optimizer(params, name, **kwargs):
     return torch.optim.__dict__[name](params, **kwargs)
 
@@ -89,14 +94,16 @@ class NLPModule(LightningModule):
         self.PHONEME_PAD = len(self.PHONEMES) + 1
         self.emb_x = nn.Embedding(len(self.CHARS) + 1, self.cfg.model.source_embedding_dim, padding_idx=-1)
         self.emb_y = nn.Embedding(len(self.PHONEMES) + 2, self.cfg.model.target_embedding_dim, padding_idx=-1)
-        self.encoder = nn.LSTM(
+        self.encoder = model_rnns[self.cfg.model.name](
             input_size=self.cfg.model.source_embedding_dim,
             hidden_size=self.cfg.model.hidden_dim,
+            num_layers=self.cfg.model.num_layers,
             batch_first=False,
         )
-        self.decoder = nn.LSTM(
+        self.decoder = model_rnns[self.cfg.model.name](
             input_size=self.cfg.model.target_embedding_dim,
             hidden_size=self.cfg.model.hidden_dim,
+            num_layers=self.cfg.model.num_layers,
             batch_first=False,
         )
         self.out = nn.Linear(self.cfg.model.hidden_dim, len(self.PHONEMES) + 1)
@@ -190,7 +197,11 @@ class NLPModule(LightningModule):
         if ys_in is None:
             sequences = []
             for batch_index in range(xs.shape[1]):
-                hidden = hidden_state[0][:, batch_index, :], hidden_state[1][:, batch_index, :]
+                if self.cfg.model.name == "LSTM":
+                    hidden = hidden_state[0][:, batch_index, :].contiguous(), hidden_state[1][:, batch_index, :].contiguous()
+                else:
+                    hidden = hidden_state[:, batch_index, :].contiguous()
+
                 ey = self.emb_y(torch.LongTensor([self.PHONEME_BOS]).to(xs.device))
                 maximum_length = xls[batch_index] * 4
                 seq = []
