@@ -1,5 +1,4 @@
 use std::io::{self, Write};
-use aho_corasick::{AhoCorasickBuilder, MatchKind};
 
 extern crate strum;
 #[macro_use] extern crate strum_macros;
@@ -40,95 +39,126 @@ pub fn validate(phonemes: &Vec<Phoneme>) -> ValidationResult {
     ValidationResult::Ok
 }
 
-#[derive(Debug, Copy, Clone, ToString, EnumIter)]
+
+#[derive(Debug, Copy, Clone, ToString, PartialEq)]
 pub enum Token {
-    A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
-    CH, GW, KW, SH, TS, TH, PH
+    B, D, F, G, H, J, K, M, N, P, R, S, T, V, W, Y, Z,
+    SH, TS, CH,
 }
 
-fn tokenize(english: &String) -> Vec<Token> {
-    let tokens: Vec<Token> = Token::iter().collect();
-    let patterns_string: Vec<String> = tokens.iter().map(|x| x.to_string()).collect();
-    let patterns: Vec<&str> = patterns_string.iter().map(|x| &**x).collect();
-
-    let ac = AhoCorasickBuilder::new()
-        .ascii_case_insensitive(true)
-        .match_kind(MatchKind::LeftmostLongest)
-        .build(&patterns);
-
-    ac.find_iter(english).map(|mat| tokens[mat.pattern()]).collect()
+#[derive(Debug, Copy, Clone, ToString, PartialEq)]
+pub enum Symbol {
+    Init,
+    X,
+    Q,
+    C,
+    PH,
+    TH,
+    Simple(Token) // token is same as its pronunciation
 }
+// is_beggining_of_phoneme, symbol
+type State = (bool, Symbol);
 
-fn coarse_phonemes(seq: &Vec<Token>) -> Vec<Phoneme> {
-    let mut vec = vec![vec![Phoneme::Silence]];
-    for t in seq {
-        vec.push(match t {
-            Token::A => vec![Phoneme::Vowel("a")],
-            Token::I => vec![Phoneme::Vowel("i")],
-            Token::U => vec![Phoneme::Vowel("u")],
-            Token::E => vec![Phoneme::Vowel("e")],
-            Token::O => vec![Phoneme::Vowel("o")],
+fn parse(english: &String) -> Vec<Phoneme> {
+    let mut state: State = (true, Symbol::Init);
+    let mut vec: Vec<Phoneme> = vec![Phoneme::Silence];
+    let flush = |symbol: Symbol, vec: &mut Vec<Phoneme>| match symbol {
+        Symbol::Init => (),
+        Symbol::X => {vec.push(Phoneme::Conso("k")); vec.push(Phoneme::Vowel("u")); vec.push(Phoneme::Conso("s"))},
+        Symbol::Q => vec.push(Phoneme::Conso("k")),
+        Symbol::C => vec.push(Phoneme::Conso("k")),
+        Symbol::TH => vec.push(Phoneme::Conso("s")),
+        Symbol::PH => vec.push(Phoneme::Conso("f")),
+        Symbol::Simple(tok) => vec.push(match tok {
+            Token::B => Phoneme::Conso("b"),
+            Token::D => Phoneme::Conso("d"),
+            Token::F => Phoneme::Conso("f"),
+            Token::G => Phoneme::Conso("g"),
+            Token::H => Phoneme::Conso("h"),
+            Token::J => Phoneme::Conso("j"),
+            Token::K => Phoneme::Conso("k"),
+            Token::M => Phoneme::Conso("m"),
+            Token::N => Phoneme::Conso("n"),
+            Token::P => Phoneme::Conso("p"),
+            Token::R => Phoneme::Conso("r"),
+            Token::S => Phoneme::Conso("s"),
+            Token::T => Phoneme::Conso("t"),
+            Token::V => Phoneme::Conso("v"),
+            Token::W => Phoneme::Conso("w"),
+            Token::Y => Phoneme::Conso("y"),
+            Token::Z => Phoneme::Conso("z"),
+            Token::SH => Phoneme::Conso("sh"),
+            Token::TS => Phoneme::Conso("ts"),
+            Token::CH => Phoneme::Conso("ch"),
+        })
+    };
 
-            Token::B => vec![Phoneme::Conso("b")],
-            Token::C => vec![Phoneme::Conso("s")],
-            Token::D => vec![Phoneme::Conso("d")],
-            Token::F => vec![Phoneme::Conso("f")],
-            Token::G => vec![Phoneme::Conso("g")],
-            Token::H => vec![Phoneme::Conso("h")],
-            Token::J => vec![Phoneme::Conso("j")],
-            Token::K => vec![Phoneme::Conso("k")],
-            Token::L => vec![Phoneme::Conso("r")],
-            Token::M => vec![Phoneme::Conso("m")],
-            Token::N => vec![Phoneme::Conso("n")],
-            Token::P => vec![Phoneme::Conso("p")],
-            Token::Q => vec![Phoneme::Conso("k")],
-            Token::R => vec![Phoneme::Conso("r")],
-            Token::S => vec![Phoneme::Conso("s")],
-            Token::T => vec![Phoneme::Conso("t")],
-            Token::V => vec![Phoneme::Conso("v")],
-            Token::W => vec![Phoneme::Conso("w")],
-            Token::X => vec![Phoneme::Conso("k"), Phoneme::Conso("s")],
-            Token::Y => vec![Phoneme::Conso("y")],
-            Token::Z => vec![Phoneme::Conso("z")],
+    for c in english.to_lowercase().chars() {
+        state = match (state, c) {
+            // vowel input
+            ((_, sym), 'a') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("a")); (false, Symbol::Init)},
+            ((_, sym), 'i') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("i")); (false, Symbol::Init)},
+            ((_, sym), 'u') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("u")); (false, Symbol::Init)},
+            ((_, sym), 'e') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("e")); (false, Symbol::Init)},
+            ((_, sym), 'o') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("o")); (false, Symbol::Init)},
 
-            Token::CH => vec![Phoneme::Conso("ch")],
-            Token::GW => vec![Phoneme::Conso("gw")],
-            Token::KW => vec![Phoneme::Conso("kw")],
-            Token::SH => vec![Phoneme::Conso("sh")],
-            Token::TS => vec![Phoneme::Conso("ts")],
-            Token::TH => vec![Phoneme::Conso("s")],
-            Token::PH => vec![Phoneme::Conso("f")],
-        });
+            // 'y' as vowel
+            ((bos, Symbol::Init), 'y') => (bos, Symbol::Simple(Token::Y)),
+            ((_, other), 'y') => {flush(other, &mut vec); vec.push(Phoneme::Vowel("i")); vec.push(Phoneme::Vowel("i")); (false, Symbol::Init)},
+
+            // stack consonants
+            ((bos, Symbol::Simple(Token::S)), 'h') => (bos, Symbol::Simple(Token::SH)),
+            ((bos, Symbol::Simple(Token::T)), 's') => (bos, Symbol::Simple(Token::TS)),
+            ((bos, Symbol::Simple(Token::T)), 'h') => (bos, Symbol::TH),
+            ((bos, Symbol::Simple(Token::P)), 'h') => (bos, Symbol::PH),
+            ((bos, Symbol::C), 'h') => (bos, Symbol::Simple(Token::CH)),
+
+            // consonant input
+            ((bos, symbol), char) => {
+                let mut out_bos = bos;
+                match symbol {
+                    Symbol::Init => (),
+                    other => {
+                        // flush prev consonant
+
+                        if !bos && symbol == Symbol::Simple(Token::N) {
+                            // N as vowel
+                            vec.push(Phoneme::Vowel("N"));
+                        } else {
+                            // unvoice
+                            flush(other, &mut vec);
+                            vec.push(Phoneme::Vowel("u"));
+                        }
+                        out_bos = false;
+                    }
+                };
+                (out_bos, match char {
+                    'b' => Symbol::Simple(Token::B),
+                    'c' => Symbol::C,
+                    'd' => Symbol::Simple(Token::D),
+                    'f' => Symbol::Simple(Token::F),
+                    'g' => Symbol::Simple(Token::G),
+                    'h' => Symbol::Simple(Token::H),
+                    'j' => Symbol::Simple(Token::J),
+                    'k' => Symbol::Simple(Token::K),
+                    'l' => Symbol::Simple(Token::R),
+                    'm' => Symbol::Simple(Token::M),
+                    'n' => Symbol::Simple(Token::N),
+                    'p' => Symbol::Simple(Token::P),
+                    'q' => Symbol::Q,
+                    'r' => Symbol::Simple(Token::R),
+                    's' => Symbol::Simple(Token::S),
+                    't' => Symbol::Simple(Token::T),
+                    'v' => Symbol::Simple(Token::V),
+                    'w' => Symbol::Simple(Token::W),
+                    'x' => Symbol::X,
+                    'y' => Symbol::Simple(Token::Y),
+                    'z' => Symbol::Simple(Token::Z),
+                    _ => Symbol::Init,
+                })
+            },
+        }
     }
-    vec.push(vec![Phoneme::Silence]);
-    vec.into_iter().flatten().collect()
-}
-
-fn fine_phonemes<'a>(seq: &'a Vec<Phoneme>) -> Vec<Phoneme<'a>> {
-    let mut vec = vec![Phoneme::Silence];
-    for w in seq.windows(3) {
-        match (w[0], w[1], w[2]) {
-            (Phoneme::Silence, Phoneme::Conso("n"), Phoneme::Conso(_)) => (),
-            (Phoneme::Silence, x, _) => vec.push(x),
-            (Phoneme::Conso(_), Phoneme::Vowel(x), _) => vec.push(Phoneme::Vowel(x)),
-            (Phoneme::Vowel(_), Phoneme::Vowel(x), _) => vec.push(Phoneme::Vowel(x)),
-            (Phoneme::Conso("y"), x, _) => vec.push(x),
-            (Phoneme::Conso(_), Phoneme::Conso("y"), _) => {vec.push(Phoneme::Vowel("i")); vec.push(Phoneme::Vowel("i"))},
-
-            (Phoneme::Vowel(_), Phoneme::Conso("n"), Phoneme::Conso(_)) => vec.push(Phoneme::Vowel("N")),
-            (Phoneme::Conso("n"), Phoneme::Conso("n"), Phoneme::Conso(_)) => vec.push(Phoneme::Vowel("N")),
-            (Phoneme::Conso(_), Phoneme::Conso("n"), Phoneme::Conso(_)) => {vec.push(Phoneme::Vowel("u")); vec.push(Phoneme::Vowel("N"))},
-            (Phoneme::Vowel(_), Phoneme::Conso("n"), Phoneme::Silence) => vec.push(Phoneme::Vowel("N")),
-            (Phoneme::Conso(_), Phoneme::Conso("n"), Phoneme::Silence) => {vec.push(Phoneme::Vowel("u")); vec.push(Phoneme::Vowel("N"))},
-            (Phoneme::Conso("n"), Phoneme::Conso(x), Phoneme::Silence) => {vec.push(Phoneme::Conso(x)); vec.push(Phoneme::Vowel("U"))},
-            (Phoneme::Conso(_), Phoneme::Conso(x), Phoneme::Silence) => {vec.push(Phoneme::Vowel("U")); vec.push(Phoneme::Conso(x)); vec.push(Phoneme::Vowel("U"))},
-            (_, Phoneme::Conso(x), Phoneme::Silence) => {vec.push(Phoneme::Conso(x)); vec.push(Phoneme::Vowel("U"))},
-            (Phoneme::Conso("n"), Phoneme::Conso(x), _) => vec.push(Phoneme::Conso(x)),
-            (Phoneme::Conso(_), Phoneme::Conso(x), _) => {vec.push(Phoneme::Vowel("U")); vec.push(Phoneme::Conso(x))},
-            (_, x, _) => vec.push(x)
-        };
-    }
-    vec.push(Phoneme::Silence);
     vec
 }
 
@@ -206,17 +236,12 @@ fn convo_to_kana<'a>(c: &'a str, v: &'a str) -> &'a str {
 }
 
 pub fn convert(english: &String) -> String {
-    let matches = tokenize(&english);
-    let coarse = coarse_phonemes(&matches);
-    assert_eq!(ValidationResult::Ok, validate(&coarse));
-    let fine = fine_phonemes(&coarse);
+    let fine = parse(&english);
     assert_eq!(ValidationResult::Ok, validate(&fine));
     // let result = unwrap_phonemes(&fine);
 
     // println!("Input: {}", english);
-    // println!("Tokens: {:?}", matches);
-    // println!("Step1: {:?}", coarse);
-    // println!("Step2: {:?}", fine);
+    // println!("Parsed: {:?}", fine);
     // println!("Result: {:?}", result);
 
     // result.join(" ")
