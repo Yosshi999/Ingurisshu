@@ -1,31 +1,10 @@
 import argparse
 from pathlib import Path
 import sys
-import string
-from typing import List
 import pickle
 import re
 
-CHARS = string.ascii_uppercase
-char2id = {k: i for i, k in enumerate(CHARS)}
-
-"""ARPABET Symbols"""
-PHONEMES = [
-    "AA", "AE", "AH", "AO", "AW", "AY",
-    "B",  "CH", "D",  "DH", "EH", "ER",
-    "EY", "F",  "G",  "HH", "IH", "IY",
-    "JH", "K",  "L",  "M",  "N",  "NG",
-    "OW", "OY", "P",  "R",  "S",  "SH",
-    "T",  "TH", "UH", "UW", "V",  "W",
-    "Y",  "Z",  "ZH"
-]
-phon2id = {k: i for i, k in enumerate(PHONEMES)}
-
-def decode_chars(chars: List[int]):
-    return "".join(map(lambda i: CHARS[i], chars))
-
-def decode_phonemes(phons: List[int]):
-    return " ".join(map(lambda i: PHONEMES[i], phons))
+from .common import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -76,7 +55,7 @@ if __name__ == "__main__":
 
     f = open("dataset.pickle", "wb")
     pickle.dump({
-        "chars": list(CHARS),
+        "chars": CHARS,
         "phonemes": PHONEMES,
         "data": saved_words,
         "LICENSE": """Copyright (C) 1993-2015 Carnegie Mellon University. All rights reserved.
