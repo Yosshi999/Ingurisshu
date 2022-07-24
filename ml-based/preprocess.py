@@ -4,7 +4,7 @@ import sys
 import pickle
 import re
 
-from .common import *
+from common import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
