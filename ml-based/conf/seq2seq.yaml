@@ -1,0 +1,22 @@
+preprocess:
+  pickle_filename: dataset.pickle
+data:
+  reverse_source: true
+  val_pct: 0.2
+  random_state: 42
+model:
+  name: GRU
+  source_embedding_dim: 64
+  target_embedding_dim: 64
+  hidden_dim: 64
+  num_layers: 1
+optim:
+  name: Adam
+  lr: 0.0003
+train:
+  epoch: 10
+  batch_size: 64
+  num_workers: 2
+val:
+  batch_size: 64
+  num_workers: 2

@@ -1,0 +1,10 @@
+hydra-core
+mlflow
+matplotlib
+numpy
+omegaconf
+pytorch-lightning
+scikit-learn
+torch
+torchvision
+tqdm

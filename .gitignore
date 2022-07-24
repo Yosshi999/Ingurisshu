@@ -1,1 +1,5 @@
 /target
+mlruns
+outputs
+checkpoints
+*.pickle
