@@ -1,0 +1,7 @@
+name: LSTM
+
+source_embedding_dim: 64
+target_embedding_dim: 64
+hidden_dim: 64
+num_layers: 1
+bidirectional: false

@@ -1,4 +1,5 @@
 from typing import List
+from unicodedata import bidirectional
 
 import torch
 from torch import nn
@@ -28,14 +29,17 @@ class Seq2Seq(nn.Module):
             hidden_size=self.cfg.model.hidden_dim,
             num_layers=self.cfg.model.num_layers,
             batch_first=False,
+            bidirectional=self.cfg.model.bidirectional,
         )
+
+        D = 2 if self.cfg.model.bidirectional else 1
         self.decoder = model_rnns[self.cfg.model.name](
             input_size=self.cfg.model.target_embedding_dim,
-            hidden_size=self.cfg.model.hidden_dim,
+            hidden_size=self.cfg.model.hidden_dim * D,
             num_layers=self.cfg.model.num_layers,
             batch_first=False,
         )
-        self.out = nn.Linear(self.cfg.model.hidden_dim, len(PHONEMES) + 1)
+        self.out = nn.Linear(self.cfg.model.hidden_dim * D, len(PHONEMES) + 1)
 
     def forward(self, xs, xls, ys_in=None, yls=None):
         """
@@ -54,6 +58,12 @@ class Seq2Seq(nn.Module):
         exs = self.emb_x(xs)
         pexs = pack_padded_sequence(exs, xls.cpu(), batch_first=False, enforce_sorted=False)
         _, hidden_state = self.encoder(pexs)
+        if self.cfg.model.name == "LSTM":
+            if self.cfg.model.bidirectional:
+                hidden_state = torch.cat([hidden_state[0][0:1], hidden_state[0][1:2]], dim=-1), torch.cat([hidden_state[1][0:1], hidden_state[1][1:2]], dim=-1)
+        elif self.cfg.model.name == "GRU":
+            if self.cfg.model.bidirectional:
+                hidden_state = torch.cat([hidden_state[0:1], hidden_state[1:2]], dim=-1)
 
         if ys_in is None:
             sequences = []

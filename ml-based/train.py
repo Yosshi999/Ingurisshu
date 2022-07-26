@@ -153,7 +153,7 @@ class NLPModule(LightningModule):
         mlflow.log_metric("val_acc", self.accs / self.counts, self.global_step)
         mlflow.log_text("\n".join(self.preds), f"prediction-{self.global_step:05d}.txt")
 
-@hydra.main(config_path="conf", config_name="seq2seq", version_base=None)
+@hydra.main(config_path="conf", config_name="config", version_base=None)
 def main(cfg: DictConfig) -> None:
     np.random.seed(0)
     torch.manual_seed(0)
