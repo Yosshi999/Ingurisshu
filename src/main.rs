@@ -1,8 +1,7 @@
-use std::io::{self, Write};
+use std::{io::{self, Write}};
 
 extern crate strum;
 #[macro_use] extern crate strum_macros;
-use strum::{IntoEnumIterator};
 
 pub const OPENJTALK_VOWELS: [&str; 12] = [
     "a", "i", "u", "e", "o", "A", "I", "U", "E", "O", "N", "cl",
@@ -41,122 +40,198 @@ pub fn validate(phonemes: &Vec<Phoneme>) -> ValidationResult {
 
 
 #[derive(Debug, Copy, Clone, ToString, PartialEq)]
-pub enum Token {
-    B, D, F, G, H, J, K, M, N, P, R, S, T, V, W, Y, Z,
+pub enum Symbol {
+    A, I, U, E, O,
+    AR, IR, UR, ER, OR,
+    B, C, D, F, G, H, J, K, L, M, N, P, Q, R, S, T, V, W, Y, Z,
+    X,
     SH, TS, CH,
+    PH, TH,
 }
 
-#[derive(Debug, Copy, Clone, ToString, PartialEq)]
-pub enum Symbol {
-    Init,
-    X,
-    Q,
-    C,
-    PH,
-    TH,
-    Simple(Token) // token is same as its pronunciation
-}
-// is_beggining_of_phoneme, symbol
-type State = (bool, Symbol);
+type State = Option<Symbol>;
 
 fn parse(english: &String) -> Vec<Phoneme> {
-    let mut state: State = (true, Symbol::Init);
+    let mut state : State = None;
     let mut vec: Vec<Phoneme> = vec![Phoneme::Silence];
-    let flush = |symbol: Symbol, vec: &mut Vec<Phoneme>| match symbol {
-        Symbol::Init => (),
-        Symbol::X => {vec.push(Phoneme::Conso("k")); vec.push(Phoneme::Vowel("u")); vec.push(Phoneme::Conso("s"))},
-        Symbol::Q => vec.push(Phoneme::Conso("k")),
-        Symbol::C => vec.push(Phoneme::Conso("k")),
-        Symbol::TH => vec.push(Phoneme::Conso("s")),
-        Symbol::PH => vec.push(Phoneme::Conso("f")),
-        Symbol::Simple(tok) => vec.push(match tok {
-            Token::B => Phoneme::Conso("b"),
-            Token::D => Phoneme::Conso("d"),
-            Token::F => Phoneme::Conso("f"),
-            Token::G => Phoneme::Conso("g"),
-            Token::H => Phoneme::Conso("h"),
-            Token::J => Phoneme::Conso("j"),
-            Token::K => Phoneme::Conso("k"),
-            Token::M => Phoneme::Conso("m"),
-            Token::N => Phoneme::Conso("n"),
-            Token::P => Phoneme::Conso("p"),
-            Token::R => Phoneme::Conso("r"),
-            Token::S => Phoneme::Conso("s"),
-            Token::T => Phoneme::Conso("t"),
-            Token::V => Phoneme::Conso("v"),
-            Token::W => Phoneme::Conso("w"),
-            Token::Y => Phoneme::Conso("y"),
-            Token::Z => Phoneme::Conso("z"),
-            Token::SH => Phoneme::Conso("sh"),
-            Token::TS => Phoneme::Conso("ts"),
-            Token::CH => Phoneme::Conso("ch"),
-        })
+    let mut is_first_mora = true;
+    let vowels = ['a', 'i', 'u', 'e', 'o', 'y'];
+    let flush = |vec: &mut Vec<Phoneme>, conso: &'static str, voicy: bool| {
+        vec.push(Phoneme::Conso(conso));
+        if !voicy {
+            vec.push(Phoneme::Vowel("u"));
+        }
     };
 
     for c in english.to_lowercase().chars() {
-        state = match (state, c) {
-            // vowel input
-            ((_, sym), 'a') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("a")); (false, Symbol::Init)},
-            ((_, sym), 'i') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("i")); (false, Symbol::Init)},
-            ((_, sym), 'u') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("u")); (false, Symbol::Init)},
-            ((_, sym), 'e') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("e")); (false, Symbol::Init)},
-            ((_, sym), 'o') => {flush(sym, &mut vec); vec.push(Phoneme::Vowel("o")); (false, Symbol::Init)},
+        let new_state: State = match state {
+            None => None,
+            Some(x) => match (x, c) {
+                (Symbol::A, 'r') => Some(Symbol::AR),
+                (Symbol::I, 'r') => Some(Symbol::IR),
+                (Symbol::U, 'r') => Some(Symbol::UR),
+                (Symbol::E, 'r') => Some(Symbol::ER),
+                (Symbol::O, 'r') => Some(Symbol::OR),
+                (Symbol::S, 'h') => Some(Symbol::SH),
+                (Symbol::T, 's') => Some(Symbol::TS),
+                (Symbol::C, 'h') => Some(Symbol::CH),
+                (Symbol::P, 'h') => Some(Symbol::PH),
+                (Symbol::T, 'h') => Some(Symbol::TH),
+                _ => None,
+            }
+        };
 
-            // 'y' as vowel
-            ((bos, Symbol::Init), 'y') => (bos, Symbol::Simple(Token::Y)),
-            ((_, other), 'y') => {flush(other, &mut vec); vec.push(Phoneme::Vowel("i")); vec.push(Phoneme::Vowel("i")); (false, Symbol::Init)},
-
-            // stack consonants
-            ((bos, Symbol::Simple(Token::S)), 'h') => (bos, Symbol::Simple(Token::SH)),
-            ((bos, Symbol::Simple(Token::T)), 's') => (bos, Symbol::Simple(Token::TS)),
-            ((bos, Symbol::Simple(Token::T)), 'h') => (bos, Symbol::TH),
-            ((bos, Symbol::Simple(Token::P)), 'h') => (bos, Symbol::PH),
-            ((bos, Symbol::C), 'h') => (bos, Symbol::Simple(Token::CH)),
-
-            // consonant input
-            ((bos, symbol), char) => {
-                let mut out_bos = bos;
-                match symbol {
-                    Symbol::Init => (),
-                    other => {
-                        // flush prev consonant
-
-                        if !bos && symbol == Symbol::Simple(Token::N) {
-                            // N as vowel
-                            vec.push(Phoneme::Vowel("N"));
-                        } else {
-                            // unvoice
-                            flush(other, &mut vec);
+        if let Some(_) = new_state {
+            state = new_state;
+        } else {
+            // flush
+            match state {
+                None => (),
+                Some(x) => {
+                    let voicy = vowels.contains(&c);
+                    match x {
+                        Symbol::A => {vec.push(Phoneme::Vowel("a"))}
+                        Symbol::I => {vec.push(Phoneme::Vowel("i"))}
+                        Symbol::U => {vec.push(Phoneme::Vowel("u"))}
+                        Symbol::E => {vec.push(Phoneme::Vowel("e"))}
+                        Symbol::O => {vec.push(Phoneme::Vowel("o"))}
+                        Symbol::AR => {
+                            if voicy {
+                                vec.push(Phoneme::Vowel("a"));
+                                vec.push(Phoneme::Conso("r"));
+                            } else {
+                                // long vowel
+                                vec.push(Phoneme::Vowel("a"));
+                                vec.push(Phoneme::Vowel("a"));
+                            }
+                        },
+                        Symbol::IR => {
+                            if voicy {
+                                vec.push(Phoneme::Vowel("i"));
+                                vec.push(Phoneme::Conso("r"));
+                            } else {
+                                // long vowel
+                                vec.push(Phoneme::Vowel("a"));
+                                vec.push(Phoneme::Vowel("a"));
+                            }
+                        },
+                        Symbol::UR => {
+                            if voicy {
+                                vec.push(Phoneme::Vowel("u"));
+                                vec.push(Phoneme::Conso("r"));
+                            } else {
+                                // long vowel
+                                vec.push(Phoneme::Vowel("a"));
+                                vec.push(Phoneme::Vowel("a"));
+                            }
+                        },
+                        Symbol::ER => {
+                            if voicy {
+                                vec.push(Phoneme::Vowel("e"));
+                                vec.push(Phoneme::Conso("r"));
+                            } else {
+                                // long vowel
+                                vec.push(Phoneme::Vowel("a"));
+                                vec.push(Phoneme::Vowel("a"));
+                            }
+                        },
+                        Symbol::OR => {
+                            if voicy {
+                                vec.push(Phoneme::Vowel("o"));
+                                vec.push(Phoneme::Conso("r"));
+                            } else {
+                                // long vowel
+                                vec.push(Phoneme::Vowel("o"));
+                                vec.push(Phoneme::Vowel("o"));
+                            }
+                        },
+                        Symbol::Y => {
+                            if voicy {
+                                if c == 'y' {
+                                    vec.push(Phoneme::Vowel("i"));
+                                } else {
+                                    vec.push(Phoneme::Conso("y"));
+                                }
+                            } else {
+                                vec.push(Phoneme::Vowel("i"));
+                                if !is_first_mora {
+                                    vec.push(Phoneme::Vowel("i"));
+                                }
+                            }
+                        },
+                        Symbol::X => {
+                            vec.push(Phoneme::Conso("k"));
                             vec.push(Phoneme::Vowel("u"));
-                        }
-                        out_bos = false;
-                    }
-                };
-                (out_bos, match char {
-                    'b' => Symbol::Simple(Token::B),
-                    'c' => Symbol::C,
-                    'd' => Symbol::Simple(Token::D),
-                    'f' => Symbol::Simple(Token::F),
-                    'g' => Symbol::Simple(Token::G),
-                    'h' => Symbol::Simple(Token::H),
-                    'j' => Symbol::Simple(Token::J),
-                    'k' => Symbol::Simple(Token::K),
-                    'l' => Symbol::Simple(Token::R),
-                    'm' => Symbol::Simple(Token::M),
-                    'n' => Symbol::Simple(Token::N),
-                    'p' => Symbol::Simple(Token::P),
-                    'q' => Symbol::Q,
-                    'r' => Symbol::Simple(Token::R),
-                    's' => Symbol::Simple(Token::S),
-                    't' => Symbol::Simple(Token::T),
-                    'v' => Symbol::Simple(Token::V),
-                    'w' => Symbol::Simple(Token::W),
-                    'x' => Symbol::X,
-                    'y' => Symbol::Simple(Token::Y),
-                    'z' => Symbol::Simple(Token::Z),
-                    _ => Symbol::Init,
-                })
-            },
+                            flush(&mut vec, "s", voicy);
+                        },
+                        Symbol::Q => flush(&mut vec, "k", voicy),
+                        Symbol::C => flush(&mut vec, "k", voicy),
+                        Symbol::TH => flush(&mut vec, "s", voicy),
+                        Symbol::PH => flush(&mut vec, "f", voicy),
+                        Symbol::B => flush(&mut vec, "b", voicy),
+                        Symbol::D => flush(&mut vec, "d", voicy),
+                        Symbol::F => flush(&mut vec, "f", voicy),
+                        Symbol::G => flush(&mut vec, "g", voicy),
+                        Symbol::H => flush(&mut vec, "h", voicy),
+                        Symbol::J => flush(&mut vec, "j", voicy),
+                        Symbol::K => flush(&mut vec, "k", voicy),
+                        Symbol::L => flush(&mut vec, "r", voicy),
+                        Symbol::M => flush(&mut vec, "m", voicy),
+                        Symbol::N => {
+                            if vowels.contains(&c) {
+                                vec.push(Phoneme::Conso("n"));
+                            } else if is_first_mora {
+                                vec.push(Phoneme::Conso("n"));
+                                vec.push(Phoneme::Vowel("u"));
+                            } else {
+                                vec.push(Phoneme::Vowel("N"));
+                            }
+                        },
+                        Symbol::P => flush(&mut vec, "p", voicy),
+                        Symbol::R => flush(&mut vec, "r", voicy),
+                        Symbol::S => flush(&mut vec, "s", voicy),
+                        Symbol::T => flush(&mut vec, "t", voicy),
+                        Symbol::V => flush(&mut vec, "v", voicy),
+                        Symbol::W => flush(&mut vec, "w", voicy),
+                        Symbol::Z => flush(&mut vec, "z", voicy),
+                        Symbol::SH => flush(&mut vec,"sh", voicy),
+                        Symbol::TS => flush(&mut vec,"ts", voicy),
+                        Symbol::CH => flush(&mut vec,"ch", voicy),
+                    };
+                    is_first_mora = false;
+                }
+            };
+
+            // update state
+            state = match c {
+                'a' => Some(Symbol::A),
+                'b' => Some(Symbol::B),
+                'c' => Some(Symbol::C),
+                'd' => Some(Symbol::D),
+                'e' => Some(Symbol::E),
+                'f' => Some(Symbol::F),
+                'g' => Some(Symbol::G),
+                'h' => Some(Symbol::H),
+                'i' => Some(Symbol::I),
+                'j' => Some(Symbol::J),
+                'k' => Some(Symbol::K),
+                'l' => Some(Symbol::L),
+                'm' => Some(Symbol::M),
+                'n' => Some(Symbol::N),
+                'o' => Some(Symbol::O),
+                'p' => Some(Symbol::P),
+                'q' => Some(Symbol::Q),
+                'r' => Some(Symbol::R),
+                's' => Some(Symbol::S),
+                't' => Some(Symbol::T),
+                'u' => Some(Symbol::U),
+                'v' => Some(Symbol::V),
+                'w' => Some(Symbol::W),
+                'x' => Some(Symbol::X),
+                'y' => Some(Symbol::Y),
+                'z' => Some(Symbol::Z),
+                _ => None,
+            }
         }
     }
     vec
